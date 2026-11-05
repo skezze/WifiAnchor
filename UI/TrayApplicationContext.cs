@@ -1,5 +1,6 @@
 using WifiBssidTool.Configuration;
 using WifiBssidTool.Infrastructure;
+using WifiBssidTool.Localization;
 using WifiBssidTool.Services;
 using WifiBssidTool.Wlan;
 
@@ -7,20 +8,31 @@ namespace WifiBssidTool.UI;
 
 internal sealed class TrayApplicationContext : ApplicationContext
 {
+    private const string AppTitle = "Wi-Fi BSSID Watcher";
+
     private readonly AppConfig config;
     private readonly WatcherService watcher;
+    private readonly UpdateService updates;
     private readonly MainForm form;
     private readonly NotifyIcon tray;
     private readonly ToolStripMenuItem miStatus;
+    private readonly ToolStripMenuItem miOpen;
+    private readonly ToolStripMenuItem miPick;
     private readonly ToolStripMenuItem miPause;
     private readonly ToolStripMenuItem miAutostart;
+    private readonly ToolStripMenuItem miUpdate;
+    private readonly ToolStripMenuItem miExit;
+    private readonly ToolStripSeparator sepUpdate;
     private readonly RegisteredWaitHandle? showWait;
+    private string notifiedUpdateVersion = "";
     private bool exiting;
 
     public TrayApplicationContext(
-        bool startMinimized, bool smokeTest, EventWaitHandle? showEvent)
+        bool startMinimized, bool smokeTest, string? languageOverride,
+        EventWaitHandle? showEvent)
     {
         config = AppConfig.Load(out string? warning);
+        Loc.SetLanguage(languageOverride ?? config.Language);
 
         if (warning != null)
             AppLog.Write(warning);
@@ -29,27 +41,34 @@ internal sealed class TrayApplicationContext : ApplicationContext
             config.TrySave(out _);
 
         watcher = new WatcherService();
-        form = new MainForm(config, watcher);
+        updates = new UpdateService(config.AutoUpdate && !smokeTest);
+        form = new MainForm(config, watcher, updates);
         _ = form.Handle; // нужен для BeginInvoke, даже пока окно скрыто
 
         var menu = new ContextMenuStrip();
-        miStatus = new ToolStripMenuItem("Запуск...") { Enabled = false };
+        miStatus = new ToolStripMenuItem { Enabled = false };
 
-        var miOpen = new ToolStripMenuItem("Открыть окно", null, (_, _) => ShowWindow())
+        miOpen = new ToolStripMenuItem(null, null, (_, _) => ShowWindow())
         {
             Font = new Font(menu.Font, FontStyle.Bold)
         };
-        var miPick = new ToolStripMenuItem("Сменить точку…", null, (_, _) => ShowPicker());
-        miPause = new ToolStripMenuItem("Приостановить", null, (_, _) => TogglePause());
-        miAutostart = new ToolStripMenuItem(
-            "Запускать вместе с Windows", null, (_, _) => ToggleAutostart());
-        var miExit = new ToolStripMenuItem("Выход", null, (_, _) => ExitApp());
+        miPick = new ToolStripMenuItem(null, null, (_, _) => ShowPicker());
+        miPause = new ToolStripMenuItem(null, null, (_, _) => TogglePause());
+        miAutostart = new ToolStripMenuItem(null, null, (_, _) => ToggleAutostart());
+        miUpdate = new ToolStripMenuItem(null, null, (_, _) => RestartForUpdate())
+        {
+            Visible = false,
+            Font = new Font(menu.Font, FontStyle.Bold)
+        };
+        miExit = new ToolStripMenuItem(null, null, (_, _) => ExitApp());
+        sepUpdate = new ToolStripSeparator { Visible = false };
 
         menu.Items.AddRange(new ToolStripItem[]
         {
             miStatus, new ToolStripSeparator(),
             miOpen, miPick, miPause, new ToolStripSeparator(),
             miAutostart, new ToolStripSeparator(),
+            miUpdate, sepUpdate,
             miExit
         });
         menu.Opening += (_, _) => miAutostart.Checked = AutoStart.IsEnabled;
@@ -57,7 +76,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         tray = new NotifyIcon
         {
             Icon = StateStyle.Icon(WatchState.NotConfigured),
-            Text = "Wi-Fi BSSID Watcher",
+            Text = AppTitle,
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -67,6 +86,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 ShowWindow();
         };
 
+        ApplyMenuLocalization();
+        Loc.LanguageChanged += OnLanguageChanged;
+
         watcher.StatusChanged += s => Post(() => OnStatus(s));
         watcher.AccessPointsUpdated += a => Post(() => form.ApplyAccessPoints(a));
         watcher.Notification += (title, text) => Post(() =>
@@ -74,10 +96,12 @@ internal sealed class TrayApplicationContext : ApplicationContext
             if (config.ShowNotifications)
                 tray.ShowBalloonTip(5000, title, text, ToolTipIcon.Info);
         });
+        updates.StatusChanged += s => Post(() => OnUpdateStatus(s));
 
         form.TargetChanged += () => OnStatus(watcher.Status);
         form.ExitRequested += ExitApp;
         form.HiddenToTray += OnHiddenToTray;
+        form.UpdateRestartRequested += RestartForUpdate;
 
         if (showEvent != null)
         {
@@ -98,15 +122,17 @@ internal sealed class TrayApplicationContext : ApplicationContext
             ? new WatchTarget(config.Ssid, config.Bssid, config.Profile)
             : null);
 
+        updates.Start();
+        OnUpdateStatus(updates.Status);
+
         if (!startMinimized)
         {
             ShowWindow();
         }
         else if (!config.HasTarget)
         {
-            tray.ShowBalloonTip(5000, "Wi-Fi BSSID Watcher",
-                "Точка ещё не выбрана. Щёлкните по значку, чтобы выбрать.",
-                ToolTipIcon.Info);
+            tray.ShowBalloonTip(5000, AppTitle,
+                Loc.T("tray.noTargetHint"), ToolTipIcon.Info);
         }
     }
 
@@ -140,10 +166,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         config.TrayHintShown = true;
         config.TrySave(out _);
 
-        tray.ShowBalloonTip(6000, "Wi-Fi BSSID Watcher",
-            "Программа продолжает работать в трее. " +
-            "Выйти можно через меню значка.",
-            ToolTipIcon.Info);
+        tray.ShowBalloonTip(6000, AppTitle,
+            Loc.T("tray.hiddenHint"), ToolTipIcon.Info);
     }
 
     // ---------- Меню ----------
@@ -158,8 +182,24 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
         catch (Exception ex)
         {
-            AppLog.Write($"Не удалось изменить автозапуск: {ex.Message}");
+            AppLog.Write($"Could not change autostart: {ex.Message}");
         }
+    }
+
+    private void OnLanguageChanged() => Post(() =>
+    {
+        ApplyMenuLocalization();
+        OnStatus(watcher.Status);
+        OnUpdateStatus(updates.Status);
+    });
+
+    private void ApplyMenuLocalization()
+    {
+        miOpen.Text = Loc.T("tray.open");
+        miPick.Text = Loc.T("tray.pick");
+        miAutostart.Text = Loc.T("tray.autostart");
+        miExit.Text = Loc.T("tray.exit");
+        miStatus.Text = Loc.T("tray.starting");
     }
 
     private void OnStatus(WatchStatus s)
@@ -168,16 +208,64 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         string who = config.HasTarget
             ? (config.NameOf(config.Bssid) is { Length: > 0 } name ? name : config.Bssid)
-            : "точка не выбрана";
+            : Loc.T("tray.noTarget");
 
         string text = $"{who}: {StateStyle.Title(s.State)}";
         tray.Text = text.Length > 120 ? text[..120] : text;
 
-        miStatus.Text = $"{StateStyle.Title(s.State)}";
-        miPause.Text = s.State == WatchState.Paused ? "Продолжить" : "Приостановить";
+        miStatus.Text = StateStyle.Title(s.State);
+        miPause.Text = Loc.T(
+            s.State == WatchState.Paused ? "action.resume" : "action.pause");
         miPause.Enabled = s.State != WatchState.NotConfigured;
 
         form.ApplyStatus(s);
+    }
+
+    // ---------- Обновления ----------
+
+    private void OnUpdateStatus(UpdateStatus s)
+    {
+        form.ApplyUpdateStatus(s);
+
+        bool ready = s.State == UpdateState.Ready;
+        miUpdate.Visible = ready;
+        sepUpdate.Visible = ready;
+
+        if (!ready)
+            return;
+
+        miUpdate.Text = Loc.T("tray.updateReady", s.Detail);
+
+        if (notifiedUpdateVersion != s.Detail)
+        {
+            notifiedUpdateVersion = s.Detail;
+
+            tray.ShowBalloonTip(8000, Loc.T("upd.balloonTitle"),
+                Loc.T("upd.balloonText", s.Detail), ToolTipIcon.Info);
+        }
+    }
+
+    private void RestartForUpdate()
+    {
+        if (exiting)
+            return;
+
+        exiting = true;
+        tray.Visible = false;
+
+        try
+        {
+            // Возврат в трей, если окно было скрыто. При успехе процесс завершается внутри вызова.
+            if (updates.ApplyAndRestart(!form.Visible))
+                return;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Write($"Could not apply the update: {ex.Message}");
+        }
+
+        exiting = false;
+        tray.Visible = true;
     }
 
     private void Post(Action action)
@@ -205,6 +293,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         tray.Visible = false;
         showWait?.Unregister(null);
         watcher.Dispose();
+        updates.Dispose();
         ExitThread();
     }
 
@@ -212,6 +301,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         if (disposing)
         {
+            Loc.LanguageChanged -= OnLanguageChanged;
             tray.Dispose();
             form.Dispose();
         }
@@ -225,9 +315,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var points = new[]
         {
-            new AccessPoint("WLAN-SR", "d8:b3:70:d8:19:55", 60, -73, "6 (2.4 ГГц)"),
-            new AccessPoint("WLAN-SR", "f4:e2:c6:6e:d8:e5", 20, -81, "1 (2.4 ГГц)"),
-            new AccessPoint("Other", "46:62:83:df:66:68", 100, -50, "153 (5 ГГц)")
+            new AccessPoint("WLAN-SR", "d8:b3:70:d8:19:55", 60, -73, "6 (2.4 GHz)"),
+            new AccessPoint("WLAN-SR", "f4:e2:c6:6e:d8:e5", 20, -81, "1 (2.4 GHz)"),
+            new AccessPoint("Other", "46:62:83:df:66:68", 100, -50, "153 (5 GHz)")
         };
 
         ShowWindow();
@@ -235,11 +325,21 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
         var conn = new ConnectionInfo("WLAN-SR", "f4:e2:c6:6e:d8:e5", "WLAN-SR", 20);
 
-        foreach (WatchState state in Enum.GetValues<WatchState>())
+        // Прогон по всем языкам: интерфейс должен перестроиться без ошибок.
+        foreach (LanguageInfo language in Loc.Languages)
         {
-            OnStatus(new WatchStatus(
-                state, "демо", conn, null, DateTime.Now));
+            Loc.SetLanguage(language.Code);
+
+            foreach (WatchState state in Enum.GetValues<WatchState>())
+            {
+                OnStatus(new WatchStatus(
+                    state, Loc.T("watch.onTarget"), conn, null, DateTime.Now));
+            }
+
+            OnUpdateStatus(new UpdateStatus(UpdateState.Ready, "9.9.9"));
         }
+
+        Loc.SetLanguage("en");
 
         var timer = new System.Windows.Forms.Timer { Interval = 1500 };
         timer.Tick += (_, _) =>

@@ -1,3 +1,5 @@
+using WifiBssidTool.Localization;
+
 namespace WifiBssidTool.UI;
 
 internal sealed class BufferedListView : ListView
@@ -37,7 +39,7 @@ internal static class InputDialog
 
         var ok = new Button
         {
-            Text = "OK",
+            Text = Loc.T("dlg.ok"),
             DialogResult = DialogResult.OK,
             Left = 232,
             Top = 90,
@@ -46,7 +48,7 @@ internal static class InputDialog
 
         var cancel = new Button
         {
-            Text = "Отмена",
+            Text = Loc.T("dlg.cancel"),
             DialogResult = DialogResult.Cancel,
             Left = 324,
             Top = 90,

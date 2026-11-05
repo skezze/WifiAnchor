@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using WifiBssidTool.Configuration;
 using WifiBssidTool.Infrastructure;
+using WifiBssidTool.Localization;
 using WifiBssidTool.Services;
 using WifiBssidTool.Wlan;
 
@@ -8,10 +9,13 @@ namespace WifiBssidTool.UI;
 
 internal sealed class MainForm : Form
 {
-    private const string AllNetworks = "(все сети)";
+    private const string AppTitle = "Wi-Fi BSSID Watcher";
+
+    private static string AllNetworks => Loc.T("points.allNetworks");
 
     private readonly AppConfig config;
     private readonly WatcherService watcher;
+    private readonly UpdateService updates;
     private readonly System.Windows.Forms.Timer timer = new() { Interval = 1000 };
 
     // Шапка
@@ -23,26 +27,45 @@ internal sealed class MainForm : Form
 
     // Вкладка «Точки»
     private readonly TabControl tabs = new();
+    private readonly TabPage pagePoints = new();
+    private readonly TabPage pageSettings = new();
+    private readonly TabPage pageLog = new();
+    private readonly Label lblNetwork = new();
     private readonly ComboBox cmbSsid = new();
+    private readonly Button btnScan = new();
     private readonly Label lblScan = new();
     private readonly BufferedListView list = new();
     private readonly Button btnPin = new();
     private readonly Button btnRename = new();
-    private readonly ToolStripMenuItem miPin = new("Закрепить эту точку");
-    private readonly ToolStripMenuItem miRename = new("Назвать…");
+    private readonly Button btnManual = new();
+    private readonly ToolStripMenuItem miPin = new();
+    private readonly ToolStripMenuItem miRename = new();
 
     // Вкладка «Настройки»
     private readonly CheckBox chkTray = new();
     private readonly CheckBox chkAutostart = new();
     private readonly CheckBox chkNotify = new();
+    private readonly Label lblHint = new();
+    private readonly Label lblPaths = new();
+    private readonly Button btnFolder = new();
+    private readonly Label lblLanguage = new();
+    private readonly ComboBox cmbLanguage = new();
+    private readonly CheckBox chkAutoUpdate = new();
+    private readonly Label lblVersion = new();
+    private readonly Button btnCheckUpdate = new();
+    private readonly Button btnRestartUpdate = new();
+    private readonly Label lblUpdate = new();
 
     // Вкладка «Журнал»
     private readonly TextBox txtLog = new();
 
     private WatchStatus currentStatus;
+    private UpdateStatus updateStatus;
     private IReadOnlyList<AccessPoint> accessPoints = Array.Empty<AccessPoint>();
     private bool ssidInitialized;
     private bool suppressEvents;
+    private bool scanning;
+    private DateTime scanUpdatedAt = DateTime.MinValue;
     private string listSignature = "";
 
     [System.ComponentModel.DesignerSerializationVisibility(
@@ -58,13 +81,18 @@ internal sealed class MainForm : Form
     /// <summary>Окно закрыто так, что программу нужно завершить.</summary>
     public event Action? ExitRequested;
 
-    public MainForm(AppConfig config, WatcherService watcher)
+    /// <summary>Пользователь просит установить скачанное обновление.</summary>
+    public event Action? UpdateRestartRequested;
+
+    public MainForm(AppConfig config, WatcherService watcher, UpdateService updates)
     {
         this.config = config;
         this.watcher = watcher;
+        this.updates = updates;
         currentStatus = watcher.Status;
+        updateStatus = updates.Status;
 
-        Text = "Wi-Fi BSSID Watcher";
+        Text = AppTitle;
         StartPosition = FormStartPosition.CenterScreen;
         ClientSize = new Size(880, 620);
         MinimumSize = new Size(760, 540);
@@ -84,13 +112,13 @@ internal sealed class MainForm : Form
 
         timer.Tick += (_, _) => UpdateStatusLines();
         AppLog.LineAdded += OnLogLine;
+        Loc.LanguageChanged += OnLanguageChanged;
 
         foreach (string line in AppLog.Snapshot())
             txtLog.AppendText(line + Environment.NewLine);
 
         LoadSettings();
-        UpdateTargetLabel();
-        ApplyStatus(currentStatus);
+        ApplyLocalization();
     }
 
     // ---------- Построение интерфейса ----------
@@ -149,20 +177,21 @@ internal sealed class MainForm : Form
         tabs.Dock = DockStyle.Fill;
         tabs.Margin = new Padding(8, 0, 8, 8);
 
-        tabs.TabPages.Add(BuildPointsPage());
-        tabs.TabPages.Add(BuildSettingsPage());
-        tabs.TabPages.Add(BuildLogPage());
+        BuildPointsPage();
+        BuildSettingsPage();
+        BuildLogPage();
+
+        tabs.TabPages.Add(pagePoints);
+        tabs.TabPages.Add(pageSettings);
+        tabs.TabPages.Add(pageLog);
 
         return tabs;
     }
 
-    private TabPage BuildPointsPage()
+    private void BuildPointsPage()
     {
-        var page = new TabPage("Точки")
-        {
-            Padding = new Padding(10),
-            UseVisualStyleBackColor = true
-        };
+        pagePoints.Padding = new Padding(10);
+        pagePoints.UseVisualStyleBackColor = true;
 
         var layout = new TableLayoutPanel
         {
@@ -183,13 +212,9 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 0, 0, 8)
         };
 
-        var lbl = new Label
-        {
-            Text = "Сеть:",
-            AutoSize = true,
-            TextAlign = ContentAlignment.MiddleLeft,
-            Margin = new Padding(0, 6, 6, 0)
-        };
+        lblNetwork.AutoSize = true;
+        lblNetwork.TextAlign = ContentAlignment.MiddleLeft;
+        lblNetwork.Margin = new Padding(0, 6, 6, 0);
 
         cmbSsid.DropDownStyle = ComboBoxStyle.DropDownList;
         cmbSsid.Width = 240;
@@ -199,18 +224,14 @@ internal sealed class MainForm : Form
                 RefreshList(true);
         };
 
-        var btnScan = MakeButton("Обновить");
-        btnScan.Click += (_, _) =>
-        {
-            lblScan.Text = "Сканирую эфир...";
-            watcher.RequestScan();
-        };
+        StyleButton(btnScan);
+        btnScan.Click += (_, _) => RequestScan();
 
         lblScan.AutoSize = true;
         lblScan.ForeColor = SystemColors.GrayText;
         lblScan.Margin = new Padding(8, 6, 0, 0);
 
-        top.Controls.AddRange(new Control[] { lbl, cmbSsid, btnScan, lblScan });
+        top.Controls.AddRange(new Control[] { lblNetwork, cmbSsid, btnScan, lblScan });
 
         // Список
         list.Dock = DockStyle.Fill;
@@ -218,12 +239,12 @@ internal sealed class MainForm : Form
         list.FullRowSelect = true;
         list.HideSelection = false;
         list.MultiSelect = false;
-        list.Columns.Add("Название", 150);
-        list.Columns.Add("BSSID", 140);
-        list.Columns.Add("Сеть", 150);
-        list.Columns.Add("Сигнал", 120);
-        list.Columns.Add("Канал", 110);
-        list.Columns.Add("Статус", 140);
+        list.Columns.Add("", 150);
+        list.Columns.Add("", 140);
+        list.Columns.Add("", 150);
+        list.Columns.Add("", 120);
+        list.Columns.Add("", 110);
+        list.Columns.Add("", 140);
         list.SelectedIndexChanged += (_, _) => UpdateButtons();
         list.DoubleClick += (_, _) => PinSelected();
 
@@ -247,15 +268,13 @@ internal sealed class MainForm : Form
             Margin = new Padding(0, 8, 0, 0)
         };
 
-        btnPin.Text = "Закрепить выбранную точку";
         StyleButton(btnPin);
         btnPin.Click += (_, _) => PinSelected();
 
-        btnRename.Text = "Назвать…";
         StyleButton(btnRename);
         btnRename.Click += (_, _) => RenameSelected();
 
-        var btnManual = MakeButton("Ввести MAC вручную…");
+        StyleButton(btnManual);
         btnManual.Click += (_, _) => PinManual();
 
         bottom.Controls.AddRange(new Control[] { btnPin, btnRename, btnManual });
@@ -263,19 +282,13 @@ internal sealed class MainForm : Form
         layout.Controls.Add(top, 0, 0);
         layout.Controls.Add(list, 0, 1);
         layout.Controls.Add(bottom, 0, 2);
-        page.Controls.Add(layout);
-
-        UpdateButtons();
-        return page;
+        pagePoints.Controls.Add(layout);
     }
 
-    private TabPage BuildSettingsPage()
+    private void BuildSettingsPage()
     {
-        var page = new TabPage("Настройки")
-        {
-            Padding = new Padding(16),
-            UseVisualStyleBackColor = true
-        };
+        pageSettings.Padding = new Padding(16);
+        pageSettings.UseVisualStyleBackColor = true;
 
         var flow = new FlowLayoutPanel
         {
@@ -285,54 +298,84 @@ internal sealed class MainForm : Form
             AutoScroll = true
         };
 
-        chkTray.Text = "При закрытии окна продолжать работу в трее";
-        chkAutostart.Text = "Запускать вместе с Windows (свёрнутым в трей)";
-        chkNotify.Text = "Показывать уведомления, когда точка пропала и вернулась";
-
-        foreach (CheckBox c in new[] { chkTray, chkAutostart, chkNotify })
+        foreach (CheckBox c in new[] { chkTray, chkAutostart, chkNotify, chkAutoUpdate })
         {
             c.AutoSize = true;
             c.Margin = new Padding(0, 0, 0, 8);
         }
 
-        var hint = new Label
+        lblHint.AutoSize = true;
+        lblHint.MaximumSize = new Size(640, 0);
+        lblHint.ForeColor = SystemColors.GrayText;
+        lblHint.Margin = new Padding(0, 0, 0, 16);
+
+        // Язык
+        var languageRow = new FlowLayoutPanel
         {
-            Text = "Если снять первую галочку, закрытие окна завершит программу. " +
-                   "Выйти можно и через меню значка в трее.",
             AutoSize = true,
-            MaximumSize = new Size(640, 0),
-            ForeColor = SystemColors.GrayText,
-            Margin = new Padding(0, 0, 0, 20)
+            WrapContents = false,
+            Margin = new Padding(0, 0, 0, 12)
         };
 
-        var paths = new Label
+        lblLanguage.AutoSize = true;
+        lblLanguage.TextAlign = ContentAlignment.MiddleLeft;
+        lblLanguage.Margin = new Padding(0, 6, 6, 0);
+
+        cmbLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
+        cmbLanguage.Width = 240;
+        cmbLanguage.SelectedIndexChanged += (_, _) => OnLanguagePicked();
+
+        languageRow.Controls.AddRange(new Control[] { lblLanguage, cmbLanguage });
+
+        // Обновления
+        var updateRow = new FlowLayoutPanel
         {
-            Text = $"Настройки: {AppConfig.FilePath}\nЖурнал: {AppLog.FilePath}",
             AutoSize = true,
-            MaximumSize = new Size(640, 0),
-            ForeColor = SystemColors.GrayText,
-            Margin = new Padding(0, 0, 0, 8)
+            WrapContents = false,
+            Margin = new Padding(0, 0, 0, 4)
         };
 
-        var btnFolder = MakeButton("Открыть папку с настройками");
+        lblVersion.AutoSize = true;
+        lblVersion.TextAlign = ContentAlignment.MiddleLeft;
+        lblVersion.Margin = new Padding(0, 6, 12, 0);
+
+        StyleButton(btnCheckUpdate);
+        btnCheckUpdate.Click += (_, _) => _ = updates.CheckAsync(true);
+
+        StyleButton(btnRestartUpdate);
+        btnRestartUpdate.Visible = false;
+        btnRestartUpdate.Click += (_, _) => UpdateRestartRequested?.Invoke();
+
+        updateRow.Controls.AddRange(
+            new Control[] { lblVersion, btnCheckUpdate, btnRestartUpdate });
+
+        lblUpdate.AutoSize = true;
+        lblUpdate.MaximumSize = new Size(640, 0);
+        lblUpdate.ForeColor = SystemColors.GrayText;
+        lblUpdate.Margin = new Padding(0, 0, 0, 16);
+
+        lblPaths.AutoSize = true;
+        lblPaths.MaximumSize = new Size(640, 0);
+        lblPaths.ForeColor = SystemColors.GrayText;
+        lblPaths.Margin = new Padding(0, 0, 0, 8);
+
+        StyleButton(btnFolder);
         btnFolder.Click += (_, _) => OpenFolder();
 
         flow.Controls.AddRange(new Control[]
         {
-            chkTray, chkNotify, chkAutostart, hint, paths, btnFolder
+            chkTray, chkNotify, chkAutostart, lblHint,
+            languageRow,
+            chkAutoUpdate, updateRow, lblUpdate,
+            lblPaths, btnFolder
         });
-        page.Controls.Add(flow);
-
-        return page;
+        pageSettings.Controls.Add(flow);
     }
 
-    private TabPage BuildLogPage()
+    private void BuildLogPage()
     {
-        var page = new TabPage("Журнал")
-        {
-            Padding = new Padding(10),
-            UseVisualStyleBackColor = true
-        };
+        pageLog.Padding = new Padding(10);
+        pageLog.UseVisualStyleBackColor = true;
 
         txtLog.Dock = DockStyle.Fill;
         txtLog.Multiline = true;
@@ -342,15 +385,7 @@ internal sealed class MainForm : Form
         txtLog.Font = new Font("Consolas", 9f);
         txtLog.BackColor = SystemColors.Window;
 
-        page.Controls.Add(txtLog);
-        return page;
-    }
-
-    private static Button MakeButton(string text)
-    {
-        var button = new Button { Text = text };
-        StyleButton(button);
-        return button;
+        pageLog.Controls.Add(txtLog);
     }
 
     private static void StyleButton(Button button)
@@ -361,6 +396,102 @@ internal sealed class MainForm : Form
         button.Margin = new Padding(0, 0, 8, 0);
     }
 
+    // ---------- Локализация ----------
+
+    /// <summary>Расставляет все тексты интерфейса на текущем языке.</summary>
+    private void ApplyLocalization()
+    {
+        pagePoints.Text = Loc.T("tab.points");
+        pageSettings.Text = Loc.T("tab.settings");
+        pageLog.Text = Loc.T("tab.log");
+
+        lblNetwork.Text = Loc.T("points.network");
+        btnScan.Text = Loc.T("points.refresh");
+
+        string[] columns = { "col.name", "col.bssid", "col.network",
+                             "col.signal", "col.channel", "col.status" };
+        for (int i = 0; i < columns.Length; i++)
+            list.Columns[i].Text = Loc.T(columns[i]);
+
+        btnPin.Text = Loc.T("points.pin");
+        btnRename.Text = Loc.T("action.rename");
+        btnManual.Text = Loc.T("points.manual");
+        miPin.Text = Loc.T("points.pinThis");
+        miRename.Text = Loc.T("action.rename");
+
+        chkTray.Text = Loc.T("set.tray");
+        chkAutostart.Text = Loc.T("set.autostart");
+        chkNotify.Text = Loc.T("set.notify");
+        lblHint.Text = Loc.T("set.hint");
+        lblPaths.Text = Loc.T("set.paths", AppConfig.FilePath, AppLog.FilePath);
+        btnFolder.Text = Loc.T("set.openFolder");
+        lblLanguage.Text = Loc.T("set.language");
+        chkAutoUpdate.Text = Loc.T("set.autoUpdate");
+        lblVersion.Text = Loc.T("set.version", updates.CurrentVersion);
+        btnCheckUpdate.Text = Loc.T("set.checkUpdates");
+        btnRestartUpdate.Text = Loc.T("set.restartUpdate");
+
+        FillLanguageList();
+        ApplyUpdateStatus(updateStatus);
+
+        UpdateScanLabel();
+        UpdateTargetLabel();
+        ApplyStatus(currentStatus);
+        RefreshSsids();
+        RefreshList(true);
+    }
+
+    private void OnLanguageChanged()
+    {
+        if (IsDisposed)
+            return;
+
+        if (InvokeRequired)
+            BeginInvoke(ApplyLocalization);
+        else
+            ApplyLocalization();
+    }
+
+    private void FillLanguageList()
+    {
+        bool previous = suppressEvents;
+        suppressEvents = true;
+
+        cmbLanguage.BeginUpdate();
+        cmbLanguage.Items.Clear();
+        cmbLanguage.Items.Add(Loc.T("set.languageAuto"));
+
+        foreach (LanguageInfo language in Loc.Languages)
+            cmbLanguage.Items.Add(language.NativeName);
+
+        int index = 0;
+
+        if (config.Language.Length > 0)
+        {
+            string code = Loc.Resolve(config.Language);
+            int found = Array.FindIndex(
+                Loc.Languages.ToArray(), l => l.Code == code);
+            index = found >= 0 ? found + 1 : 0;
+        }
+
+        cmbLanguage.SelectedIndex = index;
+        cmbLanguage.EndUpdate();
+
+        suppressEvents = previous;
+    }
+
+    private void OnLanguagePicked()
+    {
+        if (suppressEvents || cmbLanguage.SelectedIndex < 0)
+            return;
+
+        int index = cmbLanguage.SelectedIndex;
+        config.Language = index == 0 ? Loc.Auto : Loc.Languages[index - 1].Code;
+        Save();
+
+        Loc.SetLanguage(config.Language);
+    }
+
     // ---------- Настройки ----------
 
     private void LoadSettings()
@@ -369,6 +500,7 @@ internal sealed class MainForm : Form
         chkTray.Checked = config.MinimizeToTrayOnClose;
         chkNotify.Checked = config.ShowNotifications;
         chkAutostart.Checked = AutoStart.IsEnabled;
+        chkAutoUpdate.Checked = config.AutoUpdate;
         suppressEvents = false;
 
         chkTray.CheckedChanged += (_, _) =>
@@ -385,6 +517,14 @@ internal sealed class MainForm : Form
             Save();
         };
 
+        chkAutoUpdate.CheckedChanged += (_, _) =>
+        {
+            if (suppressEvents) return;
+            config.AutoUpdate = chkAutoUpdate.Checked;
+            Save();
+            updates.AutoCheck = config.AutoUpdate;
+        };
+
         chkAutostart.CheckedChanged += (_, _) =>
         {
             if (suppressEvents) return;
@@ -396,7 +536,7 @@ internal sealed class MainForm : Form
             catch (Exception ex)
             {
                 MessageBox.Show(this,
-                    $"Не удалось изменить автозапуск: {ex.Message}",
+                    Loc.T("autostart.failed", ex.Message),
                     Text, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
                 suppressEvents = true;
@@ -409,7 +549,7 @@ internal sealed class MainForm : Form
     private void Save()
     {
         if (!config.TrySave(out string? error))
-            AppLog.Write($"Не удалось сохранить настройки: {error}");
+            AppLog.Write($"Could not save settings: {error}");
     }
 
     private static void OpenFolder()
@@ -421,8 +561,32 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppLog.Write($"Не удалось открыть папку: {ex.Message}");
+            AppLog.Write($"Could not open the folder: {ex.Message}");
         }
+    }
+
+    // ---------- Обновления (вызывать из потока интерфейса) ----------
+
+    public void ApplyUpdateStatus(UpdateStatus status)
+    {
+        updateStatus = status;
+
+        lblUpdate.Text = status.State switch
+        {
+            UpdateState.Checking => Loc.T("upd.checking"),
+            UpdateState.Downloading => Loc.T("upd.downloading", status.Detail),
+            UpdateState.Ready => Loc.T("upd.ready", status.Detail),
+            UpdateState.UpToDate => Loc.T("upd.upToDate"),
+            UpdateState.NotInstalled => Loc.T("upd.notInstalled"),
+            UpdateState.Failed => Loc.T("upd.failed", status.Detail),
+            _ => ""
+        };
+
+        bool busy = status.State is UpdateState.Checking or UpdateState.Downloading;
+        bool ready = status.State == UpdateState.Ready;
+
+        btnCheckUpdate.Enabled = !busy && !ready;
+        btnRestartUpdate.Visible = ready;
     }
 
     // ---------- Данные от службы (вызывать из потока интерфейса) ----------
@@ -436,11 +600,12 @@ internal sealed class MainForm : Form
         lblState.ForeColor = color;
 
         lblCurrent.Text = status.Current == null
-            ? "Сейчас: нет подключения"
-            : $"Сейчас: {status.Current.Ssid} · {Describe(status.Current.Bssid)} " +
-              $"· сигнал {status.Current.Signal}%";
+            ? Loc.T("main.current.none")
+            : Loc.T("main.current", status.Current.Ssid,
+                Describe(status.Current.Bssid), status.Current.Signal);
 
-        btnPause.Text = status.State == WatchState.Paused ? "Продолжить" : "Приостановить";
+        btnPause.Text = Loc.T(
+            status.State == WatchState.Paused ? "action.resume" : "action.pause");
         btnPause.Enabled = status.State != WatchState.NotConfigured;
 
         Icon = StateStyle.Icon(status.State);
@@ -454,13 +619,31 @@ internal sealed class MainForm : Form
     public void ApplyAccessPoints(IReadOnlyList<AccessPoint> points)
     {
         accessPoints = points;
-        lblScan.Text = $"Обновлено {DateTime.Now:HH:mm:ss}";
+        scanning = false;
+        scanUpdatedAt = DateTime.Now;
+        UpdateScanLabel();
 
         if (Visible)
         {
             RefreshSsids();
             RefreshList(false);
         }
+    }
+
+    private void RequestScan()
+    {
+        scanning = true;
+        UpdateScanLabel();
+        watcher.RequestScan();
+    }
+
+    private void UpdateScanLabel()
+    {
+        lblScan.Text = scanning
+            ? Loc.T("main.scanning")
+            : scanUpdatedAt == DateTime.MinValue
+                ? ""
+                : Loc.T("main.updated", scanUpdatedAt.ToString("HH:mm:ss"));
     }
 
     private void UpdateStatusLines()
@@ -472,14 +655,9 @@ internal sealed class MainForm : Form
 
     private void UpdateTargetLabel()
     {
-        if (!config.HasTarget)
-        {
-            lblTarget.Text = "Целевая точка: не выбрана. Выберите её на вкладке «Точки».";
-            return;
-        }
-
-        lblTarget.Text =
-            $"Целевая точка: {Describe(config.Bssid)} · сеть «{config.Ssid}»";
+        lblTarget.Text = config.HasTarget
+            ? Loc.T("main.target", Describe(config.Bssid), config.Ssid)
+            : Loc.T("main.target.none");
     }
 
     /// <summary>«Название (mac)» либо просто mac.</summary>
@@ -540,13 +718,14 @@ internal sealed class MainForm : Form
     private void RefreshList(bool force)
     {
         string filter = cmbSsid.SelectedItem as string ?? AllNetworks;
+        bool allNetworks = filter == AllNetworks;
         string target = config.Bssid;
         string currentBssid = currentStatus.Current?.Bssid ?? "";
         string? selected = SelectedBssid();
 
         var rows = accessPoints
             .Where(a => a.Ssid.Length > 0 &&
-                        (filter == AllNetworks || a.Ssid == filter))
+                        (allNetworks || a.Ssid == filter))
             .GroupBy(a => a.Bssid)
             .Select(g => g.OrderByDescending(x => x.Rssi).First())
             .ToList();
@@ -555,7 +734,7 @@ internal sealed class MainForm : Form
 
         // Целевая точка должна быть видна в списке, даже если её нет в эфире.
         if (config.HasTarget &&
-            (filter == AllNetworks || filter == config.Ssid) &&
+            (allNetworks || filter == config.Ssid) &&
             !seen.Contains(target))
         {
             rows.Add(new AccessPoint(config.Ssid, target, 0, 0, "—"));
@@ -577,15 +756,17 @@ internal sealed class MainForm : Form
             bool isCurrent = a.Bssid == currentBssid;
 
             string statusText = isTarget
-                ? (isCurrent ? "Цель · подключено" : visible ? "Цель" : "Цель · не видна")
-                : isCurrent ? "Подключено" : "";
+                ? Loc.T(isCurrent ? "row.targetConnected"
+                        : visible ? "row.target"
+                        : "row.targetHidden")
+                : isCurrent ? Loc.T("row.connected") : "";
 
             var item = new ListViewItem(new[]
             {
                 config.NameOf(a.Bssid),
                 a.Bssid,
                 a.Ssid,
-                visible ? $"{a.Signal}% ({a.Rssi} дБм)" : "—",
+                visible ? $"{a.Signal}% ({a.Rssi} dBm)" : "—",
                 a.Channel,
                 statusText
             })
@@ -659,15 +840,15 @@ internal sealed class MainForm : Form
 
     private void PinManual()
     {
-        string? text = InputDialog.Show(this, "Ввести MAC вручную",
-            "MAC-адрес (BSSID) нужной точки, например aa:bb:cc:dd:ee:ff:");
+        string? text = InputDialog.Show(
+            this, Loc.T("manual.title"), Loc.T("manual.prompt"));
 
         if (string.IsNullOrEmpty(text))
             return;
 
         if (!Mac.IsValid(text))
         {
-            MessageBox.Show(this, "Это не похоже на MAC-адрес.", Text,
+            MessageBox.Show(this, Loc.T("manual.invalid"), Text,
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
@@ -685,9 +866,8 @@ internal sealed class MainForm : Form
                 ? config.Ssid
                 : currentStatus.Current?.Ssid ?? "";
 
-            ssid = InputDialog.Show(this, "Имя сети",
-                "Эту точку сейчас не видно. Введите имя сети (SSID), " +
-                "к которой она относится:", suggestion) ?? "";
+            ssid = InputDialog.Show(
+                this, Loc.T("ssid.title"), Loc.T("ssid.prompt"), suggestion) ?? "";
         }
 
         if (ssid.Length == 0)
@@ -707,7 +887,8 @@ internal sealed class MainForm : Form
         config.Bssid = bssid;
         Save();
 
-        AppLog.Write($"Выбрана точка {Describe(bssid)} (сеть «{ssid}»).");
+        AppLog.Write(
+            $"Selected access point {Describe(bssid)} (network \"{ssid}\").");
 
         watcher.SetTarget(new WatchTarget(ssid, bssid, config.Profile));
 
@@ -722,9 +903,9 @@ internal sealed class MainForm : Form
         if (bssid == null)
             return;
 
-        string? name = InputDialog.Show(this, "Название точки",
-            $"Как назвать точку {bssid}? Например, «Репитер в спальне».\n" +
-            "Пустое название — убрать.", config.NameOf(bssid));
+        string? name = InputDialog.Show(
+            this, Loc.T("rename.title"), Loc.T("rename.prompt", bssid),
+            config.NameOf(bssid));
 
         if (name == null)
             return;
@@ -789,8 +970,7 @@ internal sealed class MainForm : Form
         RefreshSsids();
         RefreshList(true);
 
-        lblScan.Text = "Сканирую эфир...";
-        watcher.RequestScan();
+        RequestScan();
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -821,6 +1001,7 @@ internal sealed class MainForm : Form
         if (disposing)
         {
             AppLog.LineAdded -= OnLogLine;
+            Loc.LanguageChanged -= OnLanguageChanged;
             timer.Dispose();
         }
 

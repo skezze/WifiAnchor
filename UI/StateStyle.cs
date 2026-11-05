@@ -1,5 +1,6 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using WifiBssidTool.Localization;
 using WifiBssidTool.Services;
 
 namespace WifiBssidTool.UI;
@@ -19,27 +20,27 @@ internal static class StateStyle
 
     public static string Title(WatchState state) => state switch
     {
-        WatchState.NotConfigured => "Точка не выбрана",
-        WatchState.Paused => "Пауза",
-        WatchState.NoAdapter => "Wi-Fi недоступен",
-        WatchState.OnTarget => "Подключён к выбранной точке",
-        WatchState.Connecting => "Подключаюсь к выбранной точке",
-        WatchState.Searching => "Выбранная точка недоступна, ищу",
+        WatchState.NotConfigured => Loc.T("state.notConfigured"),
+        WatchState.Paused => Loc.T("state.paused"),
+        WatchState.NoAdapter => Loc.T("state.noAdapter"),
+        WatchState.OnTarget => Loc.T("state.onTarget"),
+        WatchState.Connecting => Loc.T("state.connecting"),
+        WatchState.Searching => Loc.T("state.searching"),
         _ => ""
     };
 
     public static string FormatDuration(TimeSpan span)
     {
         if (span.TotalSeconds < 60)
-            return $"{Math.Max(0, (int)span.TotalSeconds)} с";
+            return Loc.T("dur.s", Math.Max(0, (int)span.TotalSeconds));
 
         if (span.TotalMinutes < 60)
-            return $"{(int)span.TotalMinutes} мин";
+            return Loc.T("dur.min", (int)span.TotalMinutes);
 
         if (span.TotalHours < 24)
-            return $"{(int)span.TotalHours} ч {span.Minutes} мин";
+            return Loc.T("dur.hm", (int)span.TotalHours, span.Minutes);
 
-        return $"{(int)span.TotalDays} д {span.Hours} ч";
+        return Loc.T("dur.dh", (int)span.TotalDays, span.Hours);
     }
 
     public static Icon Icon(WatchState state)

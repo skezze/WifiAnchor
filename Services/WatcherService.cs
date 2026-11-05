@@ -1,4 +1,5 @@
 using WifiBssidTool.Infrastructure;
+using WifiBssidTool.Localization;
 using WifiBssidTool.Wlan;
 
 namespace WifiBssidTool.Services;
@@ -52,7 +53,7 @@ internal sealed class WatcherService : IDisposable
     private volatile bool scanRequested;
     private volatile bool watchAccessPoints;
     private volatile WatchStatus status = new(
-        WatchState.NotConfigured, "Запуск...", null, null, DateTime.Now);
+        WatchState.NotConfigured, Loc.T("watch.starting"), null, null, DateTime.Now);
     private volatile IReadOnlyList<AccessPoint> lastAps = Array.Empty<AccessPoint>();
 
     // Только поток слежения.
@@ -143,7 +144,7 @@ internal sealed class WatcherService : IDisposable
 
     private void Run()
     {
-        AppLog.Write("Служба слежения запущена.");
+        AppLog.Write("Watcher service started.");
 
         while (!cts.IsCancellationRequested)
         {
@@ -153,9 +154,9 @@ internal sealed class WatcherService : IDisposable
             }
             catch (Exception ex)
             {
-                AppLog.Write($"Ошибка: {ex.Message}");
+                AppLog.Write($"Error: {ex.Message}");
                 DropClient();
-                Publish(WatchState.NoAdapter, $"Ошибка Wi-Fi API: {ex.Message}", null);
+                Publish(WatchState.NoAdapter, Loc.T("watch.apiError", ex.Message), null);
             }
 
             WaitHandle.WaitAny(new[] { cts.Token.WaitHandle, wake }, TickMs);
@@ -174,7 +175,7 @@ internal sealed class WatcherService : IDisposable
                 pendingTarget = null;
                 pendingReset = true;
                 AppLog.Write(
-                    $"Новая целевая точка: {target.Bssid} (сеть «{target.Ssid}»).");
+                    $"New target access point: {target.Bssid} (network \"{target.Ssid}\").");
             }
 
             if (pendingReset)
@@ -189,8 +190,7 @@ internal sealed class WatcherService : IDisposable
 
         if (!EnsureClient())
         {
-            Publish(WatchState.NoAdapter,
-                "Служба Wi-Fi недоступна (WLAN AutoConfig).", null);
+            Publish(WatchState.NoAdapter, Loc.T("watch.serviceUnavailable"), null);
             return;
         }
 
@@ -202,8 +202,7 @@ internal sealed class WatcherService : IDisposable
             if (++noAdapterTicks % 5 == 0)
                 DropClient();
 
-            Publish(WatchState.NoAdapter,
-                "Wi-Fi адаптер не найден или выключен.", null);
+            Publish(WatchState.NoAdapter, Loc.T("watch.noAdapter"), null);
             return;
         }
 
@@ -237,14 +236,13 @@ internal sealed class WatcherService : IDisposable
 
         if (t == null || t.Bssid.Length == 0)
         {
-            Publish(WatchState.NotConfigured, "Точка не выбрана.", conn);
+            Publish(WatchState.NotConfigured, Loc.T("watch.notConfigured"), conn);
             return;
         }
 
         if (paused)
         {
-            Publish(WatchState.Paused,
-                "Контроль подключения приостановлен.", conn);
+            Publish(WatchState.Paused, Loc.T("watch.paused"), conn);
             return;
         }
 
@@ -256,13 +254,13 @@ internal sealed class WatcherService : IDisposable
         {
             if (wasOk != true)
             {
-                AppLog.Write($"Подключён к целевой точке {t.Bssid}.");
+                AppLog.Write($"Connected to the target access point {t.Bssid}.");
 
                 if (outageNotified)
                 {
                     outageNotified = false;
                     Notification?.Invoke(
-                        "Wi-Fi", "Снова подключён к выбранной точке.");
+                        "Wi-Fi", Loc.T("watch.reconnected"));
                 }
             }
 
@@ -272,24 +270,23 @@ internal sealed class WatcherService : IDisposable
             verifyUntil = DateTime.MinValue;
             targetVisible = null;
 
-            Publish(WatchState.OnTarget, "Подключён к выбранной точке.", conn);
+            Publish(WatchState.OnTarget, Loc.T("watch.onTarget"), conn);
             return;
         }
 
         if (wasOk != false)
         {
             string cur = conn == null
-                ? "нет подключения"
+                ? "not connected"
                 : $"{conn.Ssid} / {conn.Bssid}";
-            AppLog.Write($"Не целевая точка: {cur}. Нужна: {t.Bssid}.");
+            AppLog.Write($"Not the target access point: {cur}. Wanted: {t.Bssid}.");
         }
 
         wasOk = false;
 
         if (now < verifyUntil)
         {
-            Publish(WatchState.Connecting,
-                "Подключаюсь к выбранной точке...", conn);
+            Publish(WatchState.Connecting, Loc.T("watch.connecting"), conn);
             return;
         }
 
@@ -297,7 +294,7 @@ internal sealed class WatcherService : IDisposable
         {
             verifyUntil = DateTime.MinValue;
             failures++;
-            AppLog.Write($"Подключение не удалось (неудач подряд: {failures}).");
+            AppLog.Write($"Connection failed (failures in a row: {failures}).");
         }
 
         if (scanArrived)
@@ -314,23 +311,22 @@ internal sealed class WatcherService : IDisposable
 
         if (verifyUntil > now)
         {
-            Publish(WatchState.Connecting,
-                "Подключаюсь к выбранной точке...", conn);
+            Publish(WatchState.Connecting, Loc.T("watch.connecting"), conn);
         }
         else if (visible)
         {
             Publish(WatchState.Connecting,
-                now < nextAttempt
-                    ? "Точка видна. Жду перед следующей попыткой подключения."
-                    : "Точка видна. Запрашиваю подключение...",
+                Loc.T(now < nextAttempt
+                    ? "watch.visibleWaiting"
+                    : "watch.visibleRequesting"),
                 conn);
         }
         else
         {
             Publish(WatchState.Searching,
-                scanReadyAt != DateTime.MinValue || targetVisible == null
-                    ? "Выбранная точка недоступна. Сканирую эфир..."
-                    : "Выбранная точка недоступна. Продолжаю искать.",
+                Loc.T(scanReadyAt != DateTime.MinValue || targetVisible == null
+                    ? "watch.searchScanning"
+                    : "watch.searchContinue"),
                 conn);
         }
     }
@@ -348,7 +344,7 @@ internal sealed class WatcherService : IDisposable
         if (ap == null)
         {
             if (targetVisible != false)
-                AppLog.Write("Целевая точка не видна (выключена или вне зоны).");
+                AppLog.Write("Target access point is not visible (off or out of range).");
 
             targetVisible = false;
             failures = 0;
@@ -357,8 +353,7 @@ internal sealed class WatcherService : IDisposable
             {
                 outageNotified = true;
                 Notification?.Invoke(
-                    "Выбранная точка недоступна",
-                    "Продолжаю искать её. Подключение вернётся автоматически.");
+                    Loc.T("watch.lostTitle"), Loc.T("watch.lostText"));
             }
 
             return;
@@ -367,7 +362,7 @@ internal sealed class WatcherService : IDisposable
         if (targetVisible != true)
         {
             AppLog.Write(
-                $"Целевая точка видна (сигнал {ap.Signal}%, канал {ap.Channel}).");
+                $"Target access point is visible (signal {ap.Signal}%, channel {ap.Channel}).");
         }
 
         targetVisible = true;
@@ -394,7 +389,7 @@ internal sealed class WatcherService : IDisposable
 
         if (failures >= HardReconnectAfterFailures)
         {
-            AppLog.Write("Обычный запрос не помог. Отключаюсь и подключаюсь заново.");
+            AppLog.Write("The regular request did not help. Disconnecting and reconnecting.");
             wlan.Disconnect();
             cts.Token.WaitHandle.WaitOne(1500);
         }
@@ -403,12 +398,12 @@ internal sealed class WatcherService : IDisposable
 
         if (result == 0)
         {
-            AppLog.Write("Запрос подключения передан Windows.");
+            AppLog.Write("Connection request passed to Windows.");
             return true;
         }
 
         AppLog.Write(
-            $"Ошибка запроса подключения: {WlanClient.Describe(result)}");
+            $"Connection request error: {WlanClient.Describe(result)}");
         return false;
     }
 
@@ -440,8 +435,8 @@ internal sealed class WatcherService : IDisposable
             return match;
 
         AppLog.Write(
-            $"Внимание: профиль Wi-Fi для «{t.Ssid}» не найден. " +
-            "Подключись к сети вручную один раз (с сохранением пароля).");
+            $"Warning: no Wi-Fi profile found for \"{t.Ssid}\". " +
+            "Connect to the network manually once (with the password saved).");
 
         return t.Ssid;
     }
@@ -455,7 +450,7 @@ internal sealed class WatcherService : IDisposable
         scanReadyAt = now.AddMilliseconds(ScanWaitMs);
 
         if (r != 0 && r != lastScanError)
-            AppLog.Write($"Ошибка сканирования: {WlanClient.Describe(r)}");
+            AppLog.Write($"Scan error: {WlanClient.Describe(r)}");
 
         lastScanError = r;
     }

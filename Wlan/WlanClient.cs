@@ -39,7 +39,7 @@ internal sealed class WlanClient : IDisposable
         if (result != 0)
         {
             throw new InvalidOperationException(
-                $"Не удалось открыть Windows Wi-Fi API: {Describe(result)}");
+                $"Could not open the Windows Wi-Fi API: {Describe(result)}");
         }
 
         return new WlanClient(client);
@@ -178,12 +178,12 @@ internal sealed class WlanClient : IDisposable
     {
         uint mhz = khz / 1000;
 
-        if (mhz == 2484) return "14 (2.4 ГГц)";
-        if (mhz is >= 2412 and <= 2472) return $"{(mhz - 2407) / 5} (2.4 ГГц)";
-        if (mhz is >= 5160 and <= 5885) return $"{(mhz - 5000) / 5} (5 ГГц)";
-        if (mhz is >= 5955 and <= 7115) return $"{(mhz - 5950) / 5} (6 ГГц)";
+        if (mhz == 2484) return "14 (2.4 GHz)";
+        if (mhz is >= 2412 and <= 2472) return $"{(mhz - 2407) / 5} (2.4 GHz)";
+        if (mhz is >= 5160 and <= 5885) return $"{(mhz - 5000) / 5} (5 GHz)";
+        if (mhz is >= 5955 and <= 7115) return $"{(mhz - 5950) / 5} (6 GHz)";
 
-        return mhz > 0 ? $"{mhz} МГц" : "?";
+        return mhz > 0 ? $"{mhz} MHz" : "?";
     }
 
     // ---------- Текущее подключение ----------

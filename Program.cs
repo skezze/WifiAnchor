@@ -1,4 +1,5 @@
-﻿using WifiBssidTool.Infrastructure;
+﻿using Velopack;
+using WifiBssidTool.Infrastructure;
 using WifiBssidTool.UI;
 
 namespace WifiBssidTool;
@@ -11,8 +12,24 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Должно быть первым: при установке, обновлении и удалении Velopack
+        // запускает exe со служебными аргументами, и процесс завершается внутри Run().
+        VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ =>
+            {
+                try
+                {
+                    AutoStart.Set(false);
+                }
+                catch
+                {
+                }
+            })
+            .Run();
+
         bool minimized = HasFlag(args, "--minimized");
         bool smokeTest = HasFlag(args, "--smoke-test");
+        string? language = ValueOf(args, "--lang=");
 
         Mutex? mutex = null;
         EventWaitHandle? showEvent = null;
@@ -47,15 +64,15 @@ internal static class Program
 
             Application.ThreadException += (_, e) =>
             {
-                AppLog.Write($"Необработанная ошибка: {e.Exception}");
+                AppLog.Write($"Unhandled error: {e.Exception}");
                 Environment.ExitCode = 1;
             };
 
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-                AppLog.Write($"Критическая ошибка: {e.ExceptionObject}");
+                AppLog.Write($"Fatal error: {e.ExceptionObject}");
 
             using var context = new TrayApplicationContext(
-                minimized, smokeTest, showEvent);
+                minimized, smokeTest, language, showEvent);
 
             Application.Run(context);
             return Environment.ExitCode;
@@ -78,4 +95,9 @@ internal static class Program
 
     private static bool HasFlag(string[] args, string flag) =>
         args.Any(a => a.Equals(flag, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Значение параметра вида --lang=de (null, если параметра нет).</summary>
+    private static string? ValueOf(string[] args, string prefix) =>
+        args.FirstOrDefault(a => a.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            ?[prefix.Length..];
 }

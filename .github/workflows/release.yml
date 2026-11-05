@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      REPO_URL: https://github.com/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Check locales
+        shell: pwsh
+        run: ./tools/check-locales.ps1
+
+      - name: Resolve version
+        shell: pwsh
+        run: |
+          $ver = '${{ github.ref_name }}'.TrimStart('v')
+          "VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Publish
+        shell: pwsh
+        run: dotnet publish WifiBssidTool.csproj -c Release -r win-x64 --no-self-contained -p:Version=$env:VERSION -o publish
+
+      - name: Install vpk
+        shell: pwsh
+        run: dotnet tool install -g vpk --version 1.2.161
+
+      - name: Download previous release (for delta packages)
+        shell: pwsh
+        continue-on-error: true
+        run: vpk download github --repoUrl $env:REPO_URL --token ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pack
+        shell: pwsh
+        run: >
+          vpk pack
+          --packId WifiBssidTool
+          --packVersion $env:VERSION
+          --packDir publish
+          --mainExe WifiBssidTool.exe
+          --packTitle "Wi-Fi BSSID Watcher"
+          --packAuthors skezze
+          --icon app.ico
+          --framework net10.0-x64-desktop
+
+      - name: Upload to GitHub Releases
+        shell: pwsh
+        run: >
+          vpk upload github
+          --repoUrl $env:REPO_URL
+          --token ${{ secrets.GITHUB_TOKEN }}
+          --publish
+          --releaseName "v$env:VERSION"
+          --tag "v$env:VERSION"

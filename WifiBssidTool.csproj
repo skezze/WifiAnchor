@@ -11,6 +11,24 @@
     <ApplicationUseCompatibleTextRendering>false</ApplicationUseCompatibleTextRendering>
     <ApplicationDefaultFont>Segoe UI, 9pt</ApplicationDefaultFont>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+
+    <!-- Версию релиза workflow переопределяет из git-тега: -p:Version=1.2.3 -->
+    <Version>1.1.0</Version>
+    <Company>skezze</Company>
+    <Product>Wi-Fi BSSID Watcher</Product>
+    <Description>Pins the Wi-Fi connection to a chosen access point or repeater</Description>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Переводы: по одному JSON-файлу на язык, вшиваются в exe. -->
+    <EmbeddedResource Include="Localization\*.json"
+                      LogicalName="WifiBssidTool.Localization.%(Filename)%(Extension)" />
+  </ItemGroup>
 
 </Project>

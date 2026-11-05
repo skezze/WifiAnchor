@@ -40,6 +40,12 @@ internal sealed class AppConfig
     /// <summary>Подсказка «программа осталась в трее» уже показывалась.</summary>
     public bool TrayHintShown { get; set; }
 
+    /// <summary>Код языка интерфейса (en, ru, de...). Пусто — язык системы.</summary>
+    public string Language { get; set; } = "";
+
+    /// <summary>Проверять и скачивать обновления в фоне.</summary>
+    public bool AutoUpdate { get; set; } = true;
+
     public bool HasTarget =>
         Ssid.Length > 0 && Mac.IsValid(Bssid);
 
@@ -78,6 +84,7 @@ internal sealed class AppConfig
             {
                 config.Ssid ??= "";
                 config.Profile ??= "";
+                config.Language ??= "";
                 config.Bssid = Mac.Normalize(config.Bssid);
                 config.Names = new Dictionary<string, string>(
                     config.Names ?? new(), StringComparer.OrdinalIgnoreCase);
@@ -86,8 +93,8 @@ internal sealed class AppConfig
         }
         catch (Exception ex)
         {
-            warning = $"Не удалось прочитать конфиг ({ex.Message}). " +
-                      "Точку нужно выбрать заново.";
+            warning = $"Could not read the config ({ex.Message}). " +
+                      "The access point has to be selected again.";
         }
 
         return new AppConfig();
