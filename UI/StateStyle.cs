@@ -1,0 +1,95 @@
+using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
+using WifiBssidTool.Services;
+
+namespace WifiBssidTool.UI;
+
+/// <summary>Цвета, тексты и иконки для состояний службы.</summary>
+internal static class StateStyle
+{
+    private static readonly Dictionary<int, Icon> Icons = new();
+
+    public static Color ColorOf(WatchState state) => state switch
+    {
+        WatchState.OnTarget => Color.FromArgb(46, 160, 67),
+        WatchState.Connecting => Color.FromArgb(224, 150, 0),
+        WatchState.Searching => Color.FromArgb(210, 60, 60),
+        _ => Color.FromArgb(128, 128, 128)
+    };
+
+    public static string Title(WatchState state) => state switch
+    {
+        WatchState.NotConfigured => "Точка не выбрана",
+        WatchState.Paused => "Пауза",
+        WatchState.NoAdapter => "Wi-Fi недоступен",
+        WatchState.OnTarget => "Подключён к выбранной точке",
+        WatchState.Connecting => "Подключаюсь к выбранной точке",
+        WatchState.Searching => "Выбранная точка недоступна, ищу",
+        _ => ""
+    };
+
+    public static string FormatDuration(TimeSpan span)
+    {
+        if (span.TotalSeconds < 60)
+            return $"{Math.Max(0, (int)span.TotalSeconds)} с";
+
+        if (span.TotalMinutes < 60)
+            return $"{(int)span.TotalMinutes} мин";
+
+        if (span.TotalHours < 24)
+            return $"{(int)span.TotalHours} ч {span.Minutes} мин";
+
+        return $"{(int)span.TotalDays} д {span.Hours} ч";
+    }
+
+    public static Icon Icon(WatchState state)
+    {
+        Color color = ColorOf(state);
+        int key = color.ToArgb();
+
+        if (!Icons.TryGetValue(key, out Icon? icon))
+        {
+            icon = Create(color);
+            Icons[key] = icon;
+        }
+
+        return icon;
+    }
+
+    private static Icon Create(Color color)
+    {
+        int size = Math.Max(16, SystemInformation.SmallIconSize.Width);
+
+        using var bmp = new Bitmap(size, size, PixelFormat.Format32bppArgb);
+        using (Graphics g = Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.Clear(Color.Transparent);
+
+            using (var bg = new SolidBrush(color))
+                g.FillEllipse(bg, 0, 0, size - 1, size - 1);
+
+            float cx = size / 2f;
+            float baseY = size * 0.72f;
+
+            using var pen = new Pen(Color.White, Math.Max(1.4f, size / 10f))
+            {
+                StartCap = LineCap.Round,
+                EndCap = LineCap.Round
+            };
+
+            foreach (float k in new[] { 0.20f, 0.34f, 0.48f })
+            {
+                float r = size * k;
+                g.DrawArc(pen, cx - r, baseY - r, r * 2, r * 2, 225, 90);
+            }
+
+            float dot = Math.Max(1.2f, size / 12f);
+            g.FillEllipse(Brushes.White, cx - dot, baseY - dot, dot * 2, dot * 2);
+        }
+
+        // Дескриптор намеренно не освобождается: иконок всего несколько,
+        // они живут до конца работы программы.
+        return System.Drawing.Icon.FromHandle(bmp.GetHicon());
+    }
+}
