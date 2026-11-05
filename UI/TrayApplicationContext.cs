@@ -8,7 +8,7 @@ namespace WifiBssidTool.UI;
 
 internal sealed class TrayApplicationContext : ApplicationContext
 {
-    private const string AppTitle = "Wi-Fi BSSID Watcher";
+    private const string AppTitle = "Wi-Fi Anchor";
 
     private readonly AppConfig config;
     private readonly WatcherService watcher;

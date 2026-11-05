@@ -4,7 +4,7 @@ Guide for AI coding agents. Humans: see `README.md` / `README.ru.md`.
 
 ## What this is
 
-WifiBssidTool: a Windows tray app (WinForms, .NET 10, `net10.0-windows`) that
+Wi-Fi Anchor (repo, exe and package id are still `WifiBssidTool`): a Windows tray app (WinForms, .NET 10, `net10.0-windows`) that
 pins the Wi-Fi connection to a chosen BSSID via the native `wlanapi.dll`.
 Installed per-user with a Velopack installer; updates itself from GitHub
 Releases (`skezze/WifiBssidTool`). UI is localized into 13 languages.
@@ -48,6 +48,10 @@ GitHub Releases. Pushing to `master` alone does not release anything.
 - **Packaging:** the build is framework-dependent and packed with
   `--framework net10.0-x64-desktop`. Do not combine self-contained with
   `--framework`.
+- **Naming:** the user-visible product name is "Wi-Fi Anchor" everywhere
+  (window, tray, installer, README). Internal identifiers stay `WifiBssidTool`
+  (`packId`, exe, namespace, `%AppData%` folder, autostart key, mutex, repo):
+  changing `packId` breaks auto-update for installed copies.
 - **Storage:** user data lives only in `%AppData%\WifiBssidTool`, never in the
   install folder (it is replaced on update).
 - **Updates only work in an installed build** (`UpdateManager.IsInstalled`),

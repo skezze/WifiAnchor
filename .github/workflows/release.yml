@@ -50,7 +50,7 @@ jobs:
           --packVersion $env:VERSION
           --packDir publish
           --mainExe WifiBssidTool.exe
-          --packTitle "Wi-Fi BSSID Watcher"
+          --packTitle "Wi-Fi Anchor"
           --packAuthors skezze
           --icon app.ico
           --framework net10.0-x64-desktop

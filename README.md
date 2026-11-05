@@ -1,4 +1,4 @@
-# WifiBssidTool
+# Wi-Fi Anchor
 
 **English** | [Русский](README.ru.md)
 
@@ -13,7 +13,7 @@ same SSID, Windows decides on its own which one to connect to, and often
 stubbornly sticks to a distant, weak one. Windows has no built-in way to say
 "connect to this particular repeater".
 
-WifiBssidTool watches which BSSID (the access point's MAC address) you are
+Wi-Fi Anchor watches which BSSID (the access point's MAC address) you are
 connected to:
 
 - while you are on the chosen access point, it **does nothing** and does not

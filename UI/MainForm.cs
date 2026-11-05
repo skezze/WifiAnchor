@@ -9,7 +9,7 @@ namespace WifiBssidTool.UI;
 
 internal sealed class MainForm : Form
 {
-    private const string AppTitle = "Wi-Fi BSSID Watcher";
+    private const string AppTitle = "Wi-Fi Anchor";
 
     private static string AllNetworks => Loc.T("points.allNetworks");
 
