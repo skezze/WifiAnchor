@@ -157,10 +157,10 @@ is picked up automatically.
 
 ```json
 {
-  "Ssid": "WLAN-SR",
-  "Bssid": "d8:b3:70:d8:19:55",
+  "Ssid": "MyNetwork",
+  "Bssid": "aa:bb:cc:dd:ee:01",
   "Profile": "",
-  "Names": { "d8:b3:70:d8:19:55": "Bedroom repeater" },
+  "Names": { "aa:bb:cc:dd:ee:01": "Bedroom repeater" },
   "MinimizeToTrayOnClose": true,
   "ShowNotifications": true,
   "Language": "",

@@ -144,10 +144,10 @@ GitHub Actions (`.github/workflows/release.yml`) соберёт программ
 
 ```json
 {
-  "Ssid": "WLAN-SR",
-  "Bssid": "d8:b3:70:d8:19:55",
+  "Ssid": "MyNetwork",
+  "Bssid": "aa:bb:cc:dd:ee:01",
   "Profile": "",
-  "Names": { "d8:b3:70:d8:19:55": "Репитер в спальне" },
+  "Names": { "aa:bb:cc:dd:ee:01": "Репитер в спальне" },
   "MinimizeToTrayOnClose": true,
   "ShowNotifications": true,
   "Language": "",

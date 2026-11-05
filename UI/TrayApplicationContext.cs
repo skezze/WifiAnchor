@@ -315,15 +315,15 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         var points = new[]
         {
-            new AccessPoint("WLAN-SR", "d8:b3:70:d8:19:55", 60, -73, "6 (2.4 GHz)"),
-            new AccessPoint("WLAN-SR", "f4:e2:c6:6e:d8:e5", 20, -81, "1 (2.4 GHz)"),
-            new AccessPoint("Other", "46:62:83:df:66:68", 100, -50, "153 (5 GHz)")
+            new AccessPoint("MyNetwork", "aa:bb:cc:dd:ee:01", 60, -73, "6 (2.4 GHz)"),
+            new AccessPoint("MyNetwork", "aa:bb:cc:dd:ee:02", 20, -81, "1 (2.4 GHz)"),
+            new AccessPoint("Other", "aa:bb:cc:dd:ee:03", 100, -50, "153 (5 GHz)")
         };
 
         ShowWindow();
         form.ApplyAccessPoints(points);
 
-        var conn = new ConnectionInfo("WLAN-SR", "f4:e2:c6:6e:d8:e5", "WLAN-SR", 20);
+        var conn = new ConnectionInfo("MyNetwork", "aa:bb:cc:dd:ee:02", "MyNetwork", 20);
 
         // Прогон по всем языкам: интерфейс должен перестроиться без ошибок.
         foreach (LanguageInfo language in Loc.Languages)
