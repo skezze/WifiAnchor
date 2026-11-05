@@ -1,6 +1,6 @@
-using WifiBssidTool.Localization;
+using WifiAnchor.Localization;
 
-namespace WifiBssidTool.UI;
+namespace WifiAnchor.UI;
 
 internal sealed class BufferedListView : ListView
 {

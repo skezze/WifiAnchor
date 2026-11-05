@@ -1,8 +1,8 @@
 using Velopack;
 using Velopack.Sources;
-using WifiBssidTool.Infrastructure;
+using WifiAnchor.Infrastructure;
 
-namespace WifiBssidTool.Services;
+namespace WifiAnchor.Services;
 
 internal enum UpdateState
 {
@@ -25,7 +25,7 @@ internal sealed record UpdateStatus(UpdateState State, string Detail = "");
 /// </summary>
 internal sealed class UpdateService : IDisposable
 {
-    private const string RepoUrl = "https://github.com/skezze/WifiBssidTool";
+    private const string RepoUrl = "https://github.com/skezze/WifiAnchor";
 
     private static readonly TimeSpan FirstCheckDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(6);

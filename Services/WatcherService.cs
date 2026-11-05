@@ -1,8 +1,8 @@
-using WifiBssidTool.Infrastructure;
-using WifiBssidTool.Localization;
-using WifiBssidTool.Wlan;
+using WifiAnchor.Infrastructure;
+using WifiAnchor.Localization;
+using WifiAnchor.Wlan;
 
-namespace WifiBssidTool.Services;
+namespace WifiAnchor.Services;
 
 internal enum WatchState
 {

@@ -48,10 +48,10 @@ Wi-Fi Anchor следит, к какому BSSID (MAC-адресу точки) �
 
 ## Установка и обновления
 
-1. Скачайте `WifiBssidTool-win-Setup.exe` со страницы
-   [Releases](https://github.com/skezze/WifiBssidTool/releases/latest) и запустите.
+1. Скачайте `WifiAnchor-win-Setup.exe` со страницы
+   [Releases](https://github.com/skezze/WifiAnchor/releases/latest) и запустите.
    Права администратора не нужны: программа ставится в
-   `%LocalAppData%\WifiBssidTool`, создаёт ярлыки и запускается сама. Если на
+   `%LocalAppData%\WifiAnchor`, создаёт ярлыки и запускается сама. Если на
    компьютере нет .NET Desktop Runtime 10, установщик скачает его сам.
 2. Дальше программа **обновляется сама**, как Discord: раз в 6 часов (и через
    30 секунд после запуска) проверяет GitHub Releases, скачивает новую версию в
@@ -60,7 +60,7 @@ Wi-Fi Anchor следит, к какому BSSID (MAC-адресу точки) �
    отключается галочкой в настройках.
 3. Удаление: «Параметры → Приложения». Автозапуск при этом убирается.
 
-Настройки лежат в `%AppData%\WifiBssidTool` и при обновлении сохраняются.
+Настройки лежат в `%AppData%\WifiAnchor` и при обновлении сохраняются.
 
 Установщик не подписан сертификатом (подпись платная), поэтому SmartScreen может
 показать «Неизвестный издатель»: «Подробнее → Выполнить в любом случае».
@@ -94,7 +94,7 @@ dotnet build -c Release
 dotnet run -c Release
 ```
 
-Готовый exe лежит в `bin\Release\net10.0-windows\WifiBssidTool.exe`. Права
+Готовый exe лежит в `bin\Release\net10.0-windows\WifiAnchor.exe`. Права
 администратора не нужны.
 
 Проверка без UI-взаимодействия (создаёт окно и меню на всех языках, код 0 при
@@ -134,7 +134,7 @@ GitHub Actions (`.github/workflows/release.yml`) соберёт программ
 
 ## Где хранятся данные
 
-Папка `%AppData%\WifiBssidTool\` (открывается кнопкой в настройках):
+Папка `%AppData%\WifiAnchor\` (открывается кнопкой в настройках):
 
 - `wifi-config.json`: выбранная точка, названия точек, настройки;
 - `log.txt`: журнал (при превышении 1 МБ старая часть уходит в `log.txt.old`).

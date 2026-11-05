@@ -31,7 +31,7 @@ jobs:
 
       - name: Publish
         shell: pwsh
-        run: dotnet publish WifiBssidTool.csproj -c Release -r win-x64 --no-self-contained -p:Version=$env:VERSION -o publish
+        run: dotnet publish WifiAnchor.csproj -c Release -r win-x64 --no-self-contained -p:Version=$env:VERSION -o publish
 
       - name: Install vpk
         shell: pwsh
@@ -46,10 +46,10 @@ jobs:
         shell: pwsh
         run: >
           vpk pack
-          --packId WifiBssidTool
+          --packId WifiAnchor
           --packVersion $env:VERSION
           --packDir publish
-          --mainExe WifiBssidTool.exe
+          --mainExe WifiAnchor.exe
           --packTitle "Wi-Fi Anchor"
           --packAuthors skezze
           --icon app.ico

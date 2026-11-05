@@ -17,7 +17,7 @@
     <Version>1.1.3</Version>
     <Company>skezze</Company>
     <Product>Wi-Fi Anchor</Product>
-        <AssemblyTitle>Wi-Fi Anchor</AssemblyTitle>
+    <AssemblyTitle>Wi-Fi Anchor</AssemblyTitle>
     <Description>Pins the Wi-Fi connection to a chosen access point or repeater</Description>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
   </PropertyGroup>
@@ -29,7 +29,7 @@
   <ItemGroup>
     <!-- Переводы: по одному JSON-файлу на язык, вшиваются в exe. -->
     <EmbeddedResource Include="Localization\*.json"
-                      LogicalName="WifiBssidTool.Localization.%(Filename)%(Extension)" />
+                      LogicalName="WifiAnchor.Localization.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

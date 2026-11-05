@@ -1,12 +1,12 @@
 using Microsoft.Win32;
 
-namespace WifiBssidTool.Infrastructure;
+namespace WifiAnchor.Infrastructure;
 
 /// <summary>Автозапуск через HKCU\...\Run (права администратора не нужны).</summary>
 internal static class AutoStart
 {
     private const string KeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "WifiBssidTool";
+    private const string ValueName = "WifiAnchor";
 
     public static bool IsEnabled
     {
@@ -57,12 +57,12 @@ internal static class AutoStart
     {
         string exe = Environment.ProcessPath ?? "";
 
-        // Запуск через «dotnet WifiBssidTool.dll».
+        // Запуск через «dotnet WifiAnchor.dll».
         if (Path.GetFileNameWithoutExtension(exe)
             .Equals("dotnet", StringComparison.OrdinalIgnoreCase))
         {
             string dll = Path.Combine(
-                AppContext.BaseDirectory, "WifiBssidTool.dll");
+                AppContext.BaseDirectory, "WifiAnchor.dll");
             return $"\"{exe}\" \"{dll}\" --minimized";
         }
 

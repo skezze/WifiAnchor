@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace WifiBssidTool.Infrastructure;
+namespace WifiAnchor.Infrastructure;
 
 internal static class Mac
 {

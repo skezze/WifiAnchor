@@ -1,10 +1,10 @@
-using WifiBssidTool.Configuration;
-using WifiBssidTool.Infrastructure;
-using WifiBssidTool.Localization;
-using WifiBssidTool.Services;
-using WifiBssidTool.Wlan;
+using WifiAnchor.Configuration;
+using WifiAnchor.Infrastructure;
+using WifiAnchor.Localization;
+using WifiAnchor.Services;
+using WifiAnchor.Wlan;
 
-namespace WifiBssidTool.UI;
+namespace WifiAnchor.UI;
 
 internal sealed class TrayApplicationContext : ApplicationContext
 {

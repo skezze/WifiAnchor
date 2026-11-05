@@ -1,13 +1,13 @@
 ﻿using Velopack;
-using WifiBssidTool.Infrastructure;
-using WifiBssidTool.UI;
+using WifiAnchor.Infrastructure;
+using WifiAnchor.UI;
 
-namespace WifiBssidTool;
+namespace WifiAnchor;
 
 internal static class Program
 {
-    private const string MutexName = @"Local\WifiBssidTool.SingleInstance";
-    private const string ShowEventName = @"Local\WifiBssidTool.ShowWindow";
+    private const string MutexName = @"Local\WifiAnchor.SingleInstance";
+    private const string ShowEventName = @"Local\WifiAnchor.ShowWindow";
 
     [STAThread]
     private static int Main(string[] args)

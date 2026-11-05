@@ -1,8 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Text;
-using WifiBssidTool.Infrastructure;
+using WifiAnchor.Infrastructure;
 
-namespace WifiBssidTool.Wlan;
+namespace WifiAnchor.Wlan;
 
 internal sealed record WlanInterface(Guid Guid, string Description, int State);
 

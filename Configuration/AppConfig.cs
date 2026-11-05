@@ -1,14 +1,14 @@
 using System.Text.Json;
 using System.Text;
-using WifiBssidTool.Infrastructure;
+using WifiAnchor.Infrastructure;
 
-namespace WifiBssidTool.Configuration;
+namespace WifiAnchor.Configuration;
 
 internal sealed class AppConfig
 {
     public static string Directory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "WifiBssidTool");
+        "WifiAnchor");
 
     public static string FilePath => Path.Combine(Directory, "wifi-config.json");
 

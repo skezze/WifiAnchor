@@ -1,9 +1,9 @@
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
-using WifiBssidTool.Localization;
-using WifiBssidTool.Services;
+using WifiAnchor.Localization;
+using WifiAnchor.Services;
 
-namespace WifiBssidTool.UI;
+namespace WifiAnchor.UI;
 
 /// <summary>Цвета, тексты и иконки для состояний службы.</summary>
 internal static class StateStyle

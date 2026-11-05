@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 
-namespace WifiBssidTool.Localization;
+namespace WifiAnchor.Localization;
 
 internal sealed record LanguageInfo(string Code, string NativeName);
 
@@ -100,7 +100,7 @@ internal static class Loc
 
     private static Dictionary<string, string> Load(string code)
     {
-        string name = $"WifiBssidTool.Localization.{code}.json";
+        string name = $"WifiAnchor.Localization.{code}.json";
 
         using Stream? stream = Assembly.GetExecutingAssembly()
             .GetManifestResourceStream(name);

@@ -1,9 +1,9 @@
 using System.Text;
-using WifiBssidTool.Configuration;
+using WifiAnchor.Configuration;
 
-namespace WifiBssidTool.Infrastructure;
+namespace WifiAnchor.Infrastructure;
 
-/// <summary>Журнал в памяти и в файле %AppData%\WifiBssidTool\log.txt.</summary>
+/// <summary>Журнал в памяти и в файле %AppData%\WifiAnchor\log.txt.</summary>
 internal static class AppLog
 {
     private const int MaxRecent = 500;

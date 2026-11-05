@@ -4,10 +4,10 @@ Guide for AI coding agents. Humans: see `README.md` / `README.ru.md`.
 
 ## What this is
 
-Wi-Fi Anchor (repo, exe and package id are still `WifiBssidTool`): a Windows tray app (WinForms, .NET 10, `net10.0-windows`) that
+Wi-Fi Anchor (internal id `WifiAnchor`): a Windows tray app (WinForms, .NET 10, `net10.0-windows`) that
 pins the Wi-Fi connection to a chosen BSSID via the native `wlanapi.dll`.
 Installed per-user with a Velopack installer; updates itself from GitHub
-Releases (`skezze/WifiBssidTool`). UI is localized into 13 languages.
+Releases (`skezze/WifiAnchor`). UI is localized into 13 languages.
 
 No admin rights are needed or wanted. There are no unit tests; validation is
 the build plus the smoke test.
@@ -20,7 +20,7 @@ the build plus the smoke test.
 | `Wlan/WlanClient.cs` | P/Invoke and wrapper over `wlanapi.dll` (query, scan, BSS list, connect, disconnect) |
 | `Services/WatcherService.cs` | Background loop: keeps the connection on the target BSSID |
 | `Services/UpdateService.cs` | Velopack auto-update (check / download / apply), status events |
-| `Configuration/AppConfig.cs` | JSON config in `%AppData%\WifiBssidTool\wifi-config.json` |
+| `Configuration/AppConfig.cs` | JSON config in `%AppData%\WifiAnchor\wifi-config.json` |
 | `Infrastructure/` | `AppLog` (log file), `AutoStart` (registry Run key), `Mac` (parse/format) |
 | `Localization/` | `Loc.cs` + one `xx.json` per language, embedded in the exe |
 | `UI/` | `TrayApplicationContext` (tray icon, menu, smoke test), `MainForm` (settings window), `StateStyle`, `Controls` |
@@ -48,11 +48,11 @@ GitHub Releases. Pushing to `master` alone does not release anything.
 - **Packaging:** the build is framework-dependent and packed with
   `--framework net10.0-x64-desktop`. Do not combine self-contained with
   `--framework`.
-- **Naming:** the user-visible product name is "Wi-Fi Anchor" everywhere
-  (window, tray, installer, README). Internal identifiers stay `WifiBssidTool`
-  (`packId`, exe, namespace, `%AppData%` folder, autostart key, mutex, repo):
-  changing `packId` breaks auto-update for installed copies.
-- **Storage:** user data lives only in `%AppData%\WifiBssidTool`, never in the
+- **Naming:** the user-visible product name is "Wi-Fi Anchor"; the internal
+  identifier is `WifiAnchor` (`packId`, exe, namespace, `%AppData%` folder,
+  autostart key, mutex, repo). Do not rename `packId` again: it breaks
+  auto-update for installed copies.
+- **Storage:** user data lives only in `%AppData%\WifiAnchor`, never in the
   install folder (it is replaced on update).
 - **Updates only work in an installed build** (`UpdateManager.IsInstalled`),
   not when running from `bin\`.

@@ -55,10 +55,10 @@ connected to:
 
 ## Installation and updates
 
-1. Download `WifiBssidTool-win-Setup.exe` from
-   [Releases](https://github.com/skezze/WifiBssidTool/releases/latest) and run
+1. Download `WifiAnchor-win-Setup.exe` from
+   [Releases](https://github.com/skezze/WifiAnchor/releases/latest) and run
    it. No administrator rights are needed: the app installs to
-   `%LocalAppData%\WifiBssidTool`, creates shortcuts and starts by itself. If
+   `%LocalAppData%\WifiAnchor`, creates shortcuts and starts by itself. If
    the .NET Desktop Runtime 10 is missing, the installer downloads it.
 2. After that the app **updates itself**, like Discord: every 6 hours (and 30
    seconds after start) it checks GitHub Releases, downloads the new version
@@ -67,7 +67,7 @@ connected to:
    launch. Auto-update can be turned off with a checkbox in the settings.
 3. Uninstall via "Settings → Apps". Autostart is removed automatically.
 
-Your settings live in `%AppData%\WifiBssidTool` and survive updates.
+Your settings live in `%AppData%\WifiAnchor` and survive updates.
 
 The installer is not signed with a certificate (code signing is paid), so
 SmartScreen may show "Unknown publisher": click "More info → Run anyway".
@@ -104,7 +104,7 @@ dotnet build -c Release
 dotnet run -c Release
 ```
 
-The exe is at `bin\Release\net10.0-windows\WifiBssidTool.exe`. No
+The exe is at `bin\Release\net10.0-windows\WifiAnchor.exe`. No
 administrator rights are needed.
 
 Non-interactive check (creates the window and menus in all languages, exits
@@ -145,7 +145,7 @@ Command-line options:
 
 ## Where data is stored
 
-Folder `%AppData%\WifiBssidTool\` (can be opened with a button in the
+Folder `%AppData%\WifiAnchor\` (can be opened with a button in the
 settings):
 
 - `wifi-config.json`: chosen access point, access point names, settings;
