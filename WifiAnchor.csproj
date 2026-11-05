@@ -14,7 +14,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
 
     <!-- Версию релиза workflow переопределяет из git-тега: -p:Version=1.2.3 -->
-    <Version>1.1.3</Version>
+    <Version>1.2.0</Version>
     <Company>skezze</Company>
     <Product>Wi-Fi Anchor</Product>
     <AssemblyTitle>Wi-Fi Anchor</AssemblyTitle>
