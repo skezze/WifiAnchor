@@ -14,7 +14,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
 
     <!-- Версию релиза workflow переопределяет из git-тега: -p:Version=1.2.3 -->
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Company>skezze</Company>
     <Product>Wi-Fi BSSID Watcher</Product>
     <Description>Pins the Wi-Fi connection to a chosen access point or repeater</Description>
